@@ -1,0 +1,48 @@
+{
+  "id": "scenario_02_deadlock",
+  "service": "orders-db-proxy",
+  "category": "deadlock",
+  "trigger_alert": {
+    "source": "pagerduty",
+    "summary": "Elevated 5xx rate on orders-db-proxy during flash sale",
+    "severity": "critical",
+    "timestamp": "2026-09-02T18:00:00Z"
+  },
+  "metrics": {
+    "active_connections": [5, 5, 5, 5, 5],
+    "window_minutes": 10
+  },
+  "logs": [
+    {
+      "ts": "17:59:10",
+      "level": "INFO",
+      "msg": "orders-db-proxy healthy, pool size 5"
+    },
+    {
+      "ts": "17:59:55",
+      "level": "WARNING",
+      "msg": "connection wait time 4200ms"
+    },
+    {
+      "ts": "18:00:02",
+      "level": "ERROR",
+      "msg": "PostgreSQL connection pool exhausted, 47 requests queued"
+    },
+    {
+      "ts": "18:00:05",
+      "level": "FATAL",
+      "msg": "connection pool timeout after 30s, dropping requests"
+    },
+    {
+      "ts": "18:00:09",
+      "level": "ERROR",
+      "msg": "PostgreSQL connection pool exhausted, 61 requests queued"
+    }
+  ],
+  "ground_truth": {
+    "root_cause": "connection pool sized for normal traffic, exhausted during flash sale spike",
+    "correct_action": "rollback_deployment",
+    "faulty_line": "18:00:05 FATAL connection pool timeout after 30s, dropping requests",
+    "expected_tool_calls": 3
+  }
+}

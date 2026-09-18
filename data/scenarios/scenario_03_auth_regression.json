@@ -1,0 +1,48 @@
+{
+  "id": "scenario_03_auth_regression",
+  "service": "auth-service",
+  "category": "auth_regression",
+  "trigger_alert": {
+    "source": "pagerduty",
+    "summary": "Spike in login failures on auth-service",
+    "severity": "critical",
+    "timestamp": "2026-09-03T09:00:00Z"
+  },
+  "metrics": {
+    "login_failure_rate_pct": [1, 2, 3, 88, 91],
+    "window_minutes": 10
+  },
+  "logs": [
+    {
+      "ts": "08:59:40",
+      "level": "INFO",
+      "msg": "auth-service deployed build 4471"
+    },
+    {
+      "ts": "08:59:42",
+      "level": "WARNING",
+      "msg": "cache miss rate elevated after deploy"
+    },
+    {
+      "ts": "09:00:01",
+      "level": "FATAL",
+      "msg": "JWT signature verification failed: key mismatch after rotation"
+    },
+    {
+      "ts": "09:00:03",
+      "level": "FATAL",
+      "msg": "JWT signature verification failed: key mismatch after rotation"
+    },
+    {
+      "ts": "09:00:05",
+      "level": "ERROR",
+      "msg": "login rejected for user 88213: invalid token"
+    }
+  ],
+  "ground_truth": {
+    "root_cause": "bad commit introduced a malformed JWT verification key after rotation",
+    "correct_action": "rollback_deployment",
+    "faulty_line": "09:00:01 FATAL JWT signature verification failed: key mismatch after rotation",
+    "expected_tool_calls": 3
+  }
+}
