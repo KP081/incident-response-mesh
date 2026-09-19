@@ -64,6 +64,7 @@ async def run_incident(scenario_id: str) -> dict:
         app_name=APP_NAME, user_id="cli_user", session_id=session.id
     )
     state = dict(final_session.state)
+    hitl_approved = state.get("hitl_approved")  # None = No high-risk action was gated
 
     remediation = state.get("remediation_plan")
     if remediation:
@@ -75,14 +76,23 @@ async def run_incident(scenario_id: str) -> dict:
         )
         triage = state.get("triage_result", {})
 
+        action = remediation.get("action", "n/a")
+        details = remediation.get("details", "")
+
+        if hitl_approved is False:
+            action = f"{action} (BLOCKED -- human denied approval)"
+            details = (
+                f"[NOT EXECUTED -- a human denied approval for this action] {details}"
+            )
+
         postmortem_md = render_postmortem(
             {
                 "session_id": run_id,
                 "service_name": triage.get("service_name", "unknown-service"),
                 "root_cause": hypothesis.get("root_cause", "not diagnosed"),
                 "cited_log_lines": hypothesis.get("cited_log_lines", []),
-                "action": remediation.get("action", "n/a"),
-                "details": remediation.get("details", ""),
+                "action": action,
+                "details": details,
             }
         )
         out_path = Path(f"postmortem_incident_{run_id}.md")
@@ -108,6 +118,10 @@ def main():
                 key, "<not set -- check DiagnosisLoop iteration cap / escalation>"
             )
         )
+
+    print(
+        f"\n--- hitl_approved ---\n{state.get('hitl_approved', '<no high-risk action was gated>')}"
+    )
 
 
 if __name__ == "__main__":
