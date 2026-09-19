@@ -47,5 +47,4 @@ critic_agent = LlmAgent(
         "6. ONLY if you approved, call exit_loop right after record_verdict."
     ),
     tools=[fetch_logs, record_verdict, exit_loop],
-    output_key="critic_verdict",  # still fires as a harmless backup on the reject path
 )

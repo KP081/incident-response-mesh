@@ -8,6 +8,16 @@ from google.adk.agents import LlmAgent
 
 from core.config import MODEL_NAME
 
+from pydantic import BaseModel
+
+
+class TriageResult(BaseModel):
+    service_name: str
+    severity: str
+    window_minutes: int
+    alert_summary: str
+
+
 triage_agent = LlmAgent(
     name="TriageAgent",
     model=MODEL_NAME,
@@ -24,5 +34,6 @@ triage_agent = LlmAgent(
         "Do NOT diagnose a root cause. Do NOT call any tools. Your only job "
         "is structured extraction."
     ),
+    output_schema=TriageResult,
     output_key="triage_result",
 )
