@@ -1,0 +1,28 @@
+{
+  "id": "scenario_13_rate_limit_misconfig",
+  "service": "api-gateway",
+  "category": "rate_limit_misconfig",
+  "trigger_alert": {
+    "source": "pagerduty",
+    "summary": "api-gateway rejecting a large share of legitimate requests",
+    "severity": "critical",
+    "timestamp": "2026-09-13T12:00:00Z"
+  },
+  "metrics": {
+    "429_response_rate_pct": [1, 2, 62, 70, 75],
+    "window_minutes": 10
+  },
+  "logs": [
+    {"ts": "11:59:30", "level": "INFO", "msg": "api-gateway deployed rate-limit config build 771"},
+    {"ts": "11:59:50", "level": "WARNING", "msg": "rate limiter cache resized"},
+    {"ts": "12:00:01", "level": "FATAL", "msg": "rate limit threshold misconfigured: 10 req/min per IP instead of 10 req/sec"},
+    {"ts": "12:00:03", "level": "ERROR", "msg": "client 203.0.113.5 rejected: rate limit exceeded"},
+    {"ts": "12:00:06", "level": "FATAL", "msg": "rate limit threshold misconfigured: 10 req/min per IP instead of 10 req/sec"}
+  ],
+  "ground_truth": {
+    "root_cause": "config build 771 set the per-IP rate limit to 10 requests/minute instead of the intended 10 requests/second",
+    "correct_action": "rollback_deployment",
+    "faulty_line": "12:00:01 FATAL rate limit threshold misconfigured: 10 req/min per IP instead of 10 req/sec",
+    "expected_tool_calls": 3
+  }
+}

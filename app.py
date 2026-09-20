@@ -50,9 +50,7 @@ async def run_incident(scenario_id: str, max_attempts: int = 3) -> dict:
         session_service = DatabaseSessionService(
             db_url="sqlite+aiosqlite:///incidents.db"
         )
-        run_id = (
-            f"{scenario_id}_{datetime.now(UTC).strftime('%Y%m%dT%H%M%S%f')}"
-        )
+        run_id = f"{scenario_id}_{datetime.now(UTC).strftime('%Y%m%dT%H%M%S%f')}"
         session = await session_service.create_session(
             app_name=APP_NAME, user_id="cli_user", session_id=run_id
         )

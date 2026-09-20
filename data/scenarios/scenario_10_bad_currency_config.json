@@ -1,0 +1,28 @@
+{
+  "id": "scenario_10_bad_currency_config",
+  "service": "billing-service",
+  "category": "bad_deploy",
+  "trigger_alert": {
+    "source": "pagerduty",
+    "summary": "Customers charged incorrect amounts after billing-service deploy",
+    "severity": "critical",
+    "timestamp": "2026-09-10T16:05:00Z"
+  },
+  "metrics": {
+    "overcharge_reports_count": [0, 1, 22, 40, 58],
+    "window_minutes": 20
+  },
+  "logs": [
+    {"ts": "16:04:30", "level": "INFO", "msg": "billing-service deployed build 3390"},
+    {"ts": "16:04:45", "level": "WARNING", "msg": "currency conversion cache refreshed"},
+    {"ts": "16:05:01", "level": "FATAL", "msg": "currency conversion table missing EUR->USD rate, fell back to 1:1 conversion"},
+    {"ts": "16:05:03", "level": "ERROR", "msg": "invoice total mismatch flagged for customer 55210"},
+    {"ts": "16:05:07", "level": "FATAL", "msg": "currency conversion table missing EUR->USD rate, fell back to 1:1 conversion"}
+  ],
+  "ground_truth": {
+    "root_cause": "build 3390 shipped an incomplete currency-conversion config missing the EUR->USD rate, causing incorrect 1:1 fallback charges",
+    "correct_action": "rollback_deployment",
+    "faulty_line": "16:05:01 FATAL currency conversion table missing EUR->USD rate, fell back to 1:1 conversion",
+    "expected_tool_calls": 3
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "scenario_08_expired_cert",
+  "service": "sso-gateway",
+  "category": "auth_regression",
+  "trigger_alert": {
+    "source": "pagerduty",
+    "summary": "All SSO logins failing across sso-gateway",
+    "severity": "critical",
+    "timestamp": "2026-09-08T00:00:00Z"
+  },
+  "metrics": {
+    "login_failure_rate_pct": [2, 3, 95, 98, 99],
+    "window_minutes": 10
+  },
+  "logs": [
+    {"ts": "23:59:30", "level": "INFO", "msg": "sso-gateway handling login requests normally"},
+    {"ts": "23:59:50", "level": "WARNING", "msg": "TLS certificate for sso-gateway expires in <1 hour"},
+    {"ts": "00:00:01", "level": "FATAL", "msg": "TLS handshake failed: certificate expired 2026-09-08T00:00:00Z"},
+    {"ts": "00:00:04", "level": "ERROR", "msg": "downstream client rejected connection: certificate expired"},
+    {"ts": "00:00:07", "level": "FATAL", "msg": "TLS handshake failed: certificate expired 2026-09-08T00:00:00Z"}
+  ],
+  "ground_truth": {
+    "root_cause": "sso-gateway's TLS certificate expired at midnight and was not auto-renewed, blocking all handshakes",
+    "correct_action": "apply_hotfix",
+    "faulty_line": "00:00:01 FATAL TLS handshake failed: certificate expired 2026-09-08T00:00:00Z",
+    "expected_tool_calls": 3
+  }
+}

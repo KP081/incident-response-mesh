@@ -1,0 +1,28 @@
+{
+  "id": "scenario_09_provider_timeout",
+  "service": "notifications-service",
+  "category": "network_timeout",
+  "trigger_alert": {
+    "source": "pagerduty",
+    "summary": "notifications-service SMS delivery backlog growing",
+    "severity": "critical",
+    "timestamp": "2026-09-09T08:30:00Z"
+  },
+  "metrics": {
+    "delivery_queue_depth": [50, 80, 4200, 5600, 6100],
+    "window_minutes": 15
+  },
+  "logs": [
+    {"ts": "08:29:20", "level": "INFO", "msg": "notifications-service dispatching SMS via provider Twilix"},
+    {"ts": "08:29:55", "level": "WARNING", "msg": "provider Twilix response time elevated, 2800ms"},
+    {"ts": "08:30:01", "level": "FATAL", "msg": "downstream timeout: provider Twilix did not respond within 4000ms"},
+    {"ts": "08:30:03", "level": "ERROR", "msg": "SMS delivery failed, message requeued"},
+    {"ts": "08:30:09", "level": "FATAL", "msg": "downstream timeout: provider Twilix did not respond within 4000ms"}
+  ],
+  "ground_truth": {
+    "root_cause": "third-party SMS provider Twilix became slow/unresponsive, exceeding notifications-service's fixed 4s timeout and backing up the delivery queue",
+    "correct_action": "config_adjustment",
+    "faulty_line": "08:30:01 FATAL downstream timeout: provider Twilix did not respond within 4000ms",
+    "expected_tool_calls": 3
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "scenario_11_disk_full",
+  "service": "analytics-pipeline",
+  "category": "disk_full",
+  "trigger_alert": {
+    "source": "pagerduty",
+    "summary": "analytics-pipeline batch jobs failing to write output",
+    "severity": "critical",
+    "timestamp": "2026-09-11T05:00:00Z"
+  },
+  "metrics": {
+    "disk_usage_pct": [70, 85, 96, 99, 100],
+    "window_minutes": 30
+  },
+  "logs": [
+    {"ts": "04:58:10", "level": "INFO", "msg": "analytics-pipeline writing daily aggregate parquet files"},
+    {"ts": "04:59:40", "level": "WARNING", "msg": "disk usage on /data volume at 96%"},
+    {"ts": "05:00:01", "level": "FATAL", "msg": "write failed: no space left on device /data"},
+    {"ts": "05:00:03", "level": "ERROR", "msg": "batch job aggregate_daily_revenue failed, exit code 1"},
+    {"ts": "05:00:08", "level": "FATAL", "msg": "write failed: no space left on device /data"}
+  ],
+  "ground_truth": {
+    "root_cause": "uncleaned intermediate parquet files from a prior failed run accumulated and filled the /data volume",
+    "correct_action": "apply_hotfix",
+    "faulty_line": "05:00:01 FATAL write failed: no space left on device /data",
+    "expected_tool_calls": 3
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "scenario_12_log_rotation_failure",
+  "service": "log-aggregator",
+  "category": "disk_full",
+  "trigger_alert": {
+    "source": "pagerduty",
+    "summary": "log-aggregator no longer ingesting new logs",
+    "severity": "critical",
+    "timestamp": "2026-09-12T21:10:00Z"
+  },
+  "metrics": {
+    "disk_usage_pct": [68, 82, 93, 98, 100],
+    "window_minutes": 45
+  },
+  "logs": [
+    {"ts": "21:08:00", "level": "INFO", "msg": "log-aggregator ingest rate normal, 12k events/sec"},
+    {"ts": "21:09:20", "level": "WARNING", "msg": "logrotate cron job did not run for 3 consecutive days"},
+    {"ts": "21:10:01", "level": "FATAL", "msg": "ingest write failed: no space left on device /var/log/aggregator"},
+    {"ts": "21:10:04", "level": "ERROR", "msg": "incoming event batch dropped, buffer full"},
+    {"ts": "21:10:09", "level": "FATAL", "msg": "ingest write failed: no space left on device /var/log/aggregator"}
+  ],
+  "ground_truth": {
+    "root_cause": "logrotate cron job silently stopped running, letting uncompressed log files fill the disk",
+    "correct_action": "apply_hotfix",
+    "faulty_line": "21:10:01 FATAL ingest write failed: no space left on device /var/log/aggregator",
+    "expected_tool_calls": 3
+  }
+}

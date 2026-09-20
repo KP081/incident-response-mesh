@@ -1,0 +1,28 @@
+{
+  "id": "scenario_15_ambiguous_backlog",
+  "service": "email-service",
+  "category": "db_write_failure",
+  "trigger_alert": {
+    "source": "pagerduty",
+    "summary": "email-service stopped sending transactional emails",
+    "severity": "critical",
+    "timestamp": "2026-09-15T07:00:00Z"
+  },
+  "metrics": {
+    "send_queue_depth": [30, 45, 9000, 9500, 9800],
+    "window_minutes": 15
+  },
+  "logs": [
+    {"ts": "06:58:00", "level": "INFO", "msg": "email-service processing send queue normally"},
+    {"ts": "06:59:10", "level": "WARNING", "msg": "send queue backlog growing, depth 9000"},
+    {"ts": "06:59:40", "level": "WARNING", "msg": "send queue backlog growing, depth 9500"},
+    {"ts": "07:00:01", "level": "FATAL", "msg": "write to delivery_log table failed: disk quota exceeded on database volume"},
+    {"ts": "07:00:05", "level": "ERROR", "msg": "email dispatch worker crashed after delivery_log write failure"}
+  ],
+  "ground_truth": {
+    "root_cause": "the delivery_log database volume ran out of disk quota, causing every send-confirmation write to fail and crash the dispatch worker -- the growing queue depth was a downstream symptom, not the cause",
+    "correct_action": "apply_hotfix",
+    "faulty_line": "07:00:01 FATAL write to delivery_log table failed: disk quota exceeded on database volume",
+    "expected_tool_calls": 3
+  }
+}

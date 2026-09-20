@@ -1,0 +1,48 @@
+{
+  "id": "scenario_05_bad_deploy",
+  "service": "search-service",
+  "category": "bad_deploy",
+  "trigger_alert": {
+    "source": "pagerduty",
+    "summary": "Search results returning empty after deploy",
+    "severity": "critical",
+    "timestamp": "2026-09-05T10:00:00Z"
+  },
+  "metrics": {
+    "search_error_rate_pct": [1, 2, 76, 81, 84],
+    "window_minutes": 10
+  },
+  "logs": [
+    {
+      "ts": "09:59:40",
+      "level": "INFO",
+      "msg": "search-service deployed build 9012"
+    },
+    {
+      "ts": "09:59:45",
+      "level": "WARNING",
+      "msg": "cache warm-up in progress"
+    },
+    {
+      "ts": "10:00:01",
+      "level": "FATAL",
+      "msg": "index alias 'search-v2' not found: config points at nonexistent index"
+    },
+    {
+      "ts": "10:00:03",
+      "level": "ERROR",
+      "msg": "search query failed: index not found"
+    },
+    {
+      "ts": "10:00:05",
+      "level": "FATAL",
+      "msg": "index alias 'search-v2' not found: config points at nonexistent index"
+    }
+  ],
+  "ground_truth": {
+    "root_cause": "deploy shipped a config pointing search-service at a non-existent index alias",
+    "correct_action": "rollback_deployment",
+    "faulty_line": "10:00:01 FATAL index alias 'search-v2' not found: config points at nonexistent index",
+    "expected_tool_calls": 3
+  }
+}

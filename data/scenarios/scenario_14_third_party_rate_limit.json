@@ -1,0 +1,28 @@
+{
+  "id": "scenario_14_third_party_rate_limit",
+  "service": "checkout-payments-service",
+  "category": "rate_limit_misconfig",
+  "trigger_alert": {
+    "source": "pagerduty",
+    "summary": "checkout-payments-service payment authorizations failing",
+    "severity": "critical",
+    "timestamp": "2026-09-14T19:45:00Z"
+  },
+  "metrics": {
+    "auth_failure_rate_pct": [2, 4, 58, 66, 70],
+    "window_minutes": 10
+  },
+  "logs": [
+    {"ts": "19:44:30", "level": "INFO", "msg": "checkout-payments-service calling payment-processor API"},
+    {"ts": "19:44:55", "level": "WARNING", "msg": "payment-processor API response headers show rate-limit remaining: 5"},
+    {"ts": "19:45:01", "level": "FATAL", "msg": "payment-processor API returned 429: rate limit exceeded for API key ck_live_9f2"},
+    {"ts": "19:45:03", "level": "ERROR", "msg": "checkout authorization failed for order 88213"},
+    {"ts": "19:45:08", "level": "FATAL", "msg": "payment-processor API returned 429: rate limit exceeded for API key ck_live_9f2"}
+  ],
+  "ground_truth": {
+    "root_cause": "checkout-payments-service's traffic growth exceeded the third-party payment processor's per-key rate limit, which was never raised",
+    "correct_action": "config_adjustment",
+    "faulty_line": "19:45:01 FATAL payment-processor API returned 429: rate limit exceeded for API key ck_live_9f2",
+    "expected_tool_calls": 3
+  }
+}

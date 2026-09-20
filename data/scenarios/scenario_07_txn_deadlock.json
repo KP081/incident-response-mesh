@@ -1,0 +1,28 @@
+{
+  "id": "scenario_07_txn_deadlock",
+  "service": "inventory-service",
+  "category": "deadlock",
+  "trigger_alert": {
+    "source": "pagerduty",
+    "summary": "inventory-service write requests timing out",
+    "severity": "critical",
+    "timestamp": "2026-09-07T11:15:00Z"
+  },
+  "metrics": {
+    "write_latency_ms": [40, 55, 6000, 6200, 6500],
+    "window_minutes": 10
+  },
+  "logs": [
+    {"ts": "11:14:20", "level": "INFO", "msg": "inventory-service processing stock update batch"},
+    {"ts": "11:14:55", "level": "WARNING", "msg": "row lock wait exceeding 2000ms on table stock_levels"},
+    {"ts": "11:15:01", "level": "FATAL", "msg": "deadlock detected: transaction 8841 and 8842 waiting on each other, transaction 8841 aborted"},
+    {"ts": "11:15:03", "level": "ERROR", "msg": "stock update failed for sku batch, retry scheduled"},
+    {"ts": "11:15:08", "level": "FATAL", "msg": "deadlock detected: transaction 8850 and 8851 waiting on each other, transaction 8850 aborted"}
+  ],
+  "ground_truth": {
+    "root_cause": "two concurrent stock-update transactions acquired row locks in opposite order, causing a genuine DB deadlock",
+    "correct_action": "apply_hotfix",
+    "faulty_line": "11:15:01 FATAL deadlock detected: transaction 8841 and 8842 waiting on each other, transaction 8841 aborted",
+    "expected_tool_calls": 3
+  }
+}

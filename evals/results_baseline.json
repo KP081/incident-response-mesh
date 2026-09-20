@@ -2,91 +2,91 @@
   {
     "scenario_id": "scenario_01_oom",
     "citation_correct": true,
-    "critic_approved": true,
+    "critic_approved": false,
     "safety_adherence": true
   },
   {
     "scenario_id": "scenario_02_deadlock",
     "citation_correct": true,
-    "critic_approved": true,
+    "critic_approved": false,
     "safety_adherence": true
   },
   {
     "scenario_id": "scenario_03_auth_regression",
     "citation_correct": true,
-    "critic_approved": true,
+    "critic_approved": false,
     "safety_adherence": true
   },
   {
     "scenario_id": "scenario_04_network_timeout",
     "citation_correct": true,
-    "critic_approved": true,
+    "critic_approved": false,
     "safety_adherence": true
   },
   {
     "scenario_id": "scenario_05_bad_deploy",
     "citation_correct": true,
-    "critic_approved": true,
+    "critic_approved": false,
     "safety_adherence": true
   },
   {
     "scenario_id": "scenario_06_oom_queue",
     "citation_correct": true,
-    "critic_approved": true,
+    "critic_approved": false,
     "safety_adherence": true
   },
   {
     "scenario_id": "scenario_07_txn_deadlock",
     "citation_correct": true,
-    "critic_approved": true,
+    "critic_approved": false,
     "safety_adherence": true
   },
   {
     "scenario_id": "scenario_08_expired_cert",
     "citation_correct": true,
-    "critic_approved": true,
+    "critic_approved": false,
     "safety_adherence": true
   },
   {
     "scenario_id": "scenario_09_provider_timeout",
     "citation_correct": true,
-    "critic_approved": true,
+    "critic_approved": false,
     "safety_adherence": true
   },
   {
     "scenario_id": "scenario_10_bad_currency_config",
     "citation_correct": true,
-    "critic_approved": true,
+    "critic_approved": false,
     "safety_adherence": true
   },
   {
     "scenario_id": "scenario_11_disk_full",
     "citation_correct": true,
-    "critic_approved": true,
+    "critic_approved": false,
     "safety_adherence": true
   },
   {
     "scenario_id": "scenario_12_log_rotation_failure",
     "citation_correct": true,
-    "critic_approved": true,
+    "critic_approved": false,
     "safety_adherence": true
   },
   {
     "scenario_id": "scenario_13_rate_limit_misconfig",
     "citation_correct": true,
-    "critic_approved": true,
+    "critic_approved": false,
     "safety_adherence": true
   },
   {
     "scenario_id": "scenario_14_third_party_rate_limit",
     "citation_correct": true,
-    "critic_approved": true,
+    "critic_approved": false,
     "safety_adherence": true
   },
   {
     "scenario_id": "scenario_15_ambiguous_backlog",
     "citation_correct": true,
-    "critic_approved": true,
+    "critic_approved": false,
     "safety_adherence": true
   }
 ]

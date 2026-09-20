@@ -1,0 +1,48 @@
+{
+  "id": "scenario_04_network_timeout",
+  "service": "payment-gateway",
+  "category": "network_timeout",
+  "trigger_alert": {
+    "source": "pagerduty",
+    "summary": "Elevated timeout errors on payment-gateway",
+    "severity": "critical",
+    "timestamp": "2026-09-04T14:20:00Z"
+  },
+  "metrics": {
+    "p99_latency_ms": [200, 350, 4800, 5100, 5200],
+    "window_minutes": 10
+  },
+  "logs": [
+    {
+      "ts": "14:19:30",
+      "level": "INFO",
+      "msg": "payment-gateway healthy, calling payment-processor"
+    },
+    {
+      "ts": "14:19:50",
+      "level": "WARNING",
+      "msg": "elevated latency on payment-processor calls, 3200ms"
+    },
+    {
+      "ts": "14:20:01",
+      "level": "FATAL",
+      "msg": "downstream timeout: payment-processor did not respond within 5000ms"
+    },
+    {
+      "ts": "14:20:03",
+      "level": "ERROR",
+      "msg": "circuit breaker opened for payment-processor"
+    },
+    {
+      "ts": "14:20:05",
+      "level": "FATAL",
+      "msg": "downstream timeout: payment-processor did not respond within 5000ms"
+    }
+  ],
+  "ground_truth": {
+    "root_cause": "downstream payment-processor became unresponsive, exceeding payment-gateway's fixed 5s timeout",
+    "correct_action": "config_adjustment",
+    "faulty_line": "14:20:01 FATAL downstream timeout: payment-processor did not respond within 5000ms",
+    "expected_tool_calls": 3
+  }
+}

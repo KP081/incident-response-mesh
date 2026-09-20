@@ -1,0 +1,28 @@
+{
+  "id": "scenario_06_oom_queue",
+  "service": "recommendation-engine",
+  "category": "oom",
+  "trigger_alert": {
+    "source": "pagerduty",
+    "summary": "recommendation-engine pods crash-looping",
+    "severity": "critical",
+    "timestamp": "2026-09-06T03:40:00Z"
+  },
+  "metrics": {
+    "memory_usage_pct": [65, 78, 90, 97, 100],
+    "window_minutes": 20
+  },
+  "logs": [
+    {"ts": "03:38:10", "level": "INFO", "msg": "recommendation-engine healthy, in-memory queue depth 120"},
+    {"ts": "03:39:05", "level": "WARNING", "msg": "in-memory event queue depth 48000, growing"},
+    {"ts": "03:39:50", "level": "WARNING", "msg": "in-memory event queue depth 91000, growing"},
+    {"ts": "03:40:02", "level": "FATAL", "msg": "OOMKilled: exit code 137, heap dump written before crash"},
+    {"ts": "03:40:06", "level": "INFO", "msg": "pod recommendation-engine-5c1a restarting"}
+  ],
+  "ground_truth": {
+    "root_cause": "unbounded in-memory event queue grew without a consumer backpressure limit, exhausting pod memory",
+    "correct_action": "rollback_deployment",
+    "faulty_line": "03:40:02 FATAL OOMKilled: exit code 137, heap dump written before crash",
+    "expected_tool_calls": 3
+  }
+}
