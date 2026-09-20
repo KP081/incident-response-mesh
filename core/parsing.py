@@ -11,11 +11,6 @@ import re
 
 
 def parse_agent_json(text) -> dict:
-    """Extract a JSON object from LLM output that may have stray text
-    around it (a bare 'json' word, a markdown fence, or both). If the
-    input is already a dict (e.g. from an output_schema-enforced agent),
-    return it unchanged.
-    """
     if isinstance(text, dict):
         return text
 
@@ -27,10 +22,17 @@ def parse_agent_json(text) -> dict:
 
     stripped = re.sub(r"^_?json\s*\n", "", stripped, flags=re.IGNORECASE)
 
+    if not stripped:
+        raise ValueError(
+            f"parse_agent_json: nothing left after stripping. Original text: {text!r}"
+        )
+
     try:
         return json.loads(stripped)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
         start, end = stripped.find("{"), stripped.rfind("}")
         if start != -1 and end != -1:
             return json.loads(stripped[start : end + 1])
-        raise
+        raise ValueError(
+            f"parse_agent_json: could not extract JSON. Original text: {text!r}"
+        ) from e

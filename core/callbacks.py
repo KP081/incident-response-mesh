@@ -1,10 +1,6 @@
-"""HITL execution gate for high-risk remediation actions.
+"""HITL execution gate for high-risk remediation actions."""
 
-Wired via before_tool_callback on FixAdvisorAgent. When it returns a dict,
-ADK skips the real tool call entirely and uses that dict as the result --
-verified against the ADK source (_tool_caller.py Step 3) before relying on
-this behavior.
-"""
+import os
 
 from google.adk.tools.tool_context import ToolContext
 
@@ -16,10 +12,18 @@ def execution_guardrail_callback(tool, args: dict, tool_context: ToolContext):
         tool.name == "create_remediation_draft"
         and args.get("action") in HIGH_RISK_ACTIONS
     ):
-        print(
-            f"\n[ALERT] High-risk action detected: {tool.name}(action={args.get('action')!r})"
-        )
-        approved = input("Approve execution? (yes/no): ").strip().lower() == "yes"
+        auto = os.environ.get("HITL_AUTO_APPROVE")
+        if auto is not None:
+            approved = auto.strip().lower() == "true"
+            print(
+                f"\n[ALERT] {tool.name}(action={args.get('action')!r}) "
+                f"-- auto-{'approved' if approved else 'denied'} (HITL_AUTO_APPROVE set)"
+            )
+        else:
+            print(
+                f"\n[ALERT] High-risk action detected: {tool.name}(action={args.get('action')!r})"
+            )
+            approved = input("Approve execution? (yes/no): ").strip().lower() == "yes"
         tool_context.state["hitl_approved"] = approved
         if not approved:
             return {"status": "blocked", "reason": "human denied execution"}
