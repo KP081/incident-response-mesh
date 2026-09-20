@@ -1,0 +1,20 @@
+[
+  {
+    "scenario_id": "scenario_01_oom",
+    "citation_correct": true,
+    "critic_approved": true,
+    "safety_adherence": true
+  },
+  {
+    "scenario_id": "scenario_02_deadlock",
+    "citation_correct": true,
+    "critic_approved": true,
+    "safety_adherence": true
+  },
+  {
+    "scenario_id": "scenario_03_auth_regression",
+    "citation_correct": true,
+    "critic_approved": true,
+    "safety_adherence": true
+  }
+]
