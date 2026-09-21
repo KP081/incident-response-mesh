@@ -219,3 +219,4 @@ __marimo__/
 
 incidents.db
 postmortem_incident_*.md
+.gcloudignore
