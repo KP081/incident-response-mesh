@@ -136,9 +136,20 @@ with right:
                 )
                 st.session_state.postmortem_written = md
                 st.rerun()
-        elif state.get("remediation_plan") and not pending:
+
+        remediation = state.get("remediation_plan")
+        if remediation:
             with st.expander("Remediation Plan", expanded=True):
-                st.json(parse_agent_json(state["remediation_plan"]))
+                st.json(parse_agent_json(remediation))
+
+        if remediation and not pending and not st.session_state.postmortem_written:
+            r = parse_agent_json(remediation)
+            st.session_state.postmortem_written = write_postmortem(
+                state,
+                st.session_state.run_id,
+                r.get("action", "n/a"),
+                r.get("details", ""),
+            )
 
         if st.session_state.postmortem_written:
             st.subheader("Postmortem")

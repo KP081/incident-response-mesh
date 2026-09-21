@@ -1,0 +1,9 @@
+.venv
+.git
+__pycache__
+*.pyc
+.pytest_cache
+incidents.db
+postmortem_incident_*.md
+.env
+evals/results*.json
