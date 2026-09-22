@@ -19,6 +19,8 @@ from core.agent import root_agent
 from core.parsing import parse_agent_json
 from tools.report_tools import render_postmortem
 
+from core.config import DATABASE_URL, get_session_service_kwargs
+
 RETRYABLE_CODES = {429, 503}
 
 APP_NAME = "incident_mesh"
@@ -48,8 +50,8 @@ async def run_incident(scenario_id: str, max_attempts: int = 3) -> dict:
     last_error = None
     for attempt in range(1, max_attempts + 1):
         session_service = DatabaseSessionService(
-            db_url="sqlite+aiosqlite:///incidents.db"
-        )
+    db_url=DATABASE_URL, **get_session_service_kwargs()
+)
         run_id = f"{scenario_id}_{datetime.now(UTC).strftime('%Y%m%dT%H%M%S%f')}"
         session = await session_service.create_session(
             app_name=APP_NAME, user_id="cli_user", session_id=run_id

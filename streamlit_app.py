@@ -28,6 +28,8 @@ from core.agent import root_agent
 from core.parsing import parse_agent_json
 from tools.report_tools import create_remediation_draft, render_postmortem
 
+from core.config import DATABASE_URL, get_session_service_kwargs
+
 st.set_page_config(page_title="Incident Response Mesh", layout="wide")
 
 CATEGORY_META = {
@@ -77,7 +79,7 @@ def get_event_loop():
 
 async def run_incident_for_ui(scenario_id: str) -> tuple[dict, str]:
     scenario = json.loads((SCENARIOS_DIR / f"{scenario_id}.json").read_text())
-    session_service = DatabaseSessionService(db_url="sqlite+aiosqlite:///incidents.db")
+    session_service = DatabaseSessionService(db_url=DATABASE_URL, **get_session_service_kwargs())
     run_id = (
         f"{scenario_id}_ui_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')}"
     )
