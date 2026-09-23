@@ -16,7 +16,6 @@ Run:
 import asyncio
 import json
 from datetime import datetime, timezone
-from pathlib import Path
 
 import streamlit as st
 
@@ -25,10 +24,9 @@ from google.adk.sessions import DatabaseSessionService
 
 from app import APP_NAME, SCENARIOS_DIR, _run_debug_with_retry
 from core.agent import root_agent
+from core.config import DATABASE_URL, get_session_service_kwargs
 from core.parsing import parse_agent_json
 from tools.report_tools import create_remediation_draft, render_postmortem
-
-from core.config import DATABASE_URL, get_session_service_kwargs
 
 st.set_page_config(page_title="Incident Response Mesh", layout="wide")
 
@@ -49,6 +47,7 @@ for key in (
     "postmortem_written",
     "triggered_scenario_id",
     "pending_scenario_id",
+    "last_error",
 ):
     if key not in st.session_state:
         st.session_state[key] = None
@@ -79,7 +78,9 @@ def get_event_loop():
 
 async def run_incident_for_ui(scenario_id: str) -> tuple[dict, str]:
     scenario = json.loads((SCENARIOS_DIR / f"{scenario_id}.json").read_text())
-    session_service = DatabaseSessionService(db_url=DATABASE_URL, **get_session_service_kwargs())
+    session_service = DatabaseSessionService(
+        db_url=DATABASE_URL, **get_session_service_kwargs()
+    )
     run_id = (
         f"{scenario_id}_ui_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')}"
     )
@@ -98,12 +99,16 @@ async def run_incident_for_ui(scenario_id: str) -> tuple[dict, str]:
     return dict(final.state), run_id
 
 
-def write_postmortem(state: dict, run_id: str, action: str, details: str) -> str:
+def build_postmortem_markdown(
+    state: dict, run_id: str, action: str, details: str
+) -> str:
+    """Builds the postmortem markdown in memory only -- no disk write.
+    See module docstring for why."""
     hypothesis = (
         parse_agent_json(state["hypothesis"]) if state.get("hypothesis") else {}
     )
     triage = state.get("triage_result", {})
-    md = render_postmortem(
+    return render_postmortem(
         {
             "session_id": run_id,
             "service_name": triage.get("service_name", "unknown-service"),
@@ -113,8 +118,6 @@ def write_postmortem(state: dict, run_id: str, action: str, details: str) -> str
             "details": details,
         }
     )
-    Path(f"postmortem_incident_{run_id}.md").write_text(md)
-    return md
 
 
 st.title("🚨 Incident Response Mesh")
@@ -127,7 +130,7 @@ st.markdown(
 with st.expander("ℹ️ How this works"):
     st.markdown("""
 1. **Trigger** -- you pick a simulated incident and click Trigger. The system receives just the raw alert (like a real PagerDuty payload) -- nothing else, no hints.
-2. **Triage** -- an agent extracts which service is affected and how urgent it is.
+2. **Triage** -- an agent extracts which service is affected and how urgent the alert is.
 3. **Diagnose** -- a second agent investigates logs and metrics, then proposes a root cause, citing the exact log line as evidence.
 4. **Critic Review** -- a third agent independently re-checks that evidence against the raw logs. If a citation doesn't hold up, it's sent back to step 3 with feedback (up to 3 tries) before anything proceeds.
 5. **Remediate** -- once a diagnosis is verified, a fourth agent proposes a fix. Risky actions (like rolling back a deployment) pause here for human approval before they'd actually run.
@@ -161,6 +164,7 @@ with left:
     if st.button("🚀 Trigger Incident", type="primary"):
         st.session_state.state = None
         st.session_state.postmortem_written = None
+        st.session_state.last_error = None
         st.session_state.pending_scenario_id = selected
         st.rerun()
 
@@ -171,11 +175,20 @@ with left:
         ):
             loop = get_event_loop()
             asyncio.set_event_loop(loop)
-            state, run_id = loop.run_until_complete(run_incident_for_ui(pending_id))
-        st.session_state.state = state
-        st.session_state.run_id = run_id
-        st.session_state.triggered_scenario_id = pending_id
-        st.session_state.pending_scenario_id = None
+            try:
+                state, run_id = loop.run_until_complete(run_incident_for_ui(pending_id))
+                st.session_state.state = state
+                st.session_state.run_id = run_id
+                st.session_state.triggered_scenario_id = pending_id
+                st.session_state.last_error = None
+            except Exception as e:
+                # Gemini transient errors, etc. -- don't crash the app, and
+                # don't leave pending_scenario_id stuck (that was the bug
+                # that caused the crash-loop on refresh).
+                st.session_state.state = None
+                st.session_state.last_error = str(e)
+            finally:
+                st.session_state.pending_scenario_id = None
         st.rerun()
 
 with right:
@@ -184,6 +197,12 @@ with right:
 
     if st.session_state.get("pending_scenario_id"):
         st.info("⏳ Agents are working on this incident... (usually 10-30 seconds)")
+    elif st.session_state.get("last_error"):
+        st.error(f"⚠️ Run failed: {st.session_state.last_error}")
+        st.caption(
+            "Usually a transient error from the Gemini API. Click "
+            "**Trigger Incident** again to retry."
+        )
     elif not state:
         st.info(
             "Select an incident on the left and click **Trigger Incident** "
@@ -248,13 +267,13 @@ with right:
             c1, c2 = st.columns(2)
             if c1.button("✅ Approve & Execute"):
                 result = create_remediation_draft(**pending)
-                md = write_postmortem(
+                md = build_postmortem_markdown(
                     state, st.session_state.run_id, result["action"], result["details"]
                 )
                 st.session_state.postmortem_written = md
                 st.rerun()
             if c2.button("❌ Deny"):
-                md = write_postmortem(
+                md = build_postmortem_markdown(
                     state,
                     st.session_state.run_id,
                     f"{pending.get('action')} (BLOCKED -- human denied approval)",
@@ -270,7 +289,7 @@ with right:
                 st.json(r)
 
             if not pending and not st.session_state.postmortem_written:
-                st.session_state.postmortem_written = write_postmortem(
+                st.session_state.postmortem_written = build_postmortem_markdown(
                     state,
                     st.session_state.run_id,
                     r.get("action", "n/a"),
@@ -280,6 +299,12 @@ with right:
         if st.session_state.postmortem_written:
             with st.expander("📄 Full Postmortem"):
                 st.markdown(st.session_state.postmortem_written)
+            st.download_button(
+                label="⬇️ Download Postmortem (.md)",
+                data=st.session_state.postmortem_written,
+                file_name=f"postmortem_incident_{st.session_state.run_id}.md",
+                mime="text/markdown",
+            )
 
         if st.session_state.triggered_scenario_id:
             with st.expander(
