@@ -6,6 +6,49 @@ PyGithub opening an actual PR -- can replace `fetch_git_diff`'s body later
 without touching its signature or any caller.
 """
 
+import os
+from datetime import datetime, timezone
+from github import Github, Auth, GithubException
+
+def open_remediation_pr(
+    service_name: str, action: str, details: str, tool_context=None
+) -> dict:
+    """Opens a real branch + PR on the sandbox repo recording this
+    incident's remediation. Returns pr_url on success, or an error dict
+    the agent/UI can surface without crashing the run."""
+    token = os.environ["GITHUB_PAT"]
+    repo_name = os.environ["GITHUB_SANDBOX_REPO"]
+    
+    try:
+        gh = Github(auth=Auth.Token(token))
+        repo = gh.get_repo(repo_name)
+        base = repo.get_branch(repo.default_branch)
+        
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+        branch_name = f"incident-fix/{service_name}-{ts}"
+        repo.create_git_ref(ref=f"refs/heads/{branch_name}", sha=base.commit.sha)
+        
+        file_path = f"remediation-log/{service_name}-{ts}.md"
+        content = f"# Remediation: {service_name}\n\n**Action:** {action}\n\n{details}\n"
+        repo.create_file(
+            path=file_path,
+            message=f"incident-response-mesh: {action} for {service_name}",
+            content=content,
+            branch=branch_name
+        )
+        
+        pr = repo.create_pull(
+            title=f"[Auto] {action} — {service_name}",
+            body=f"Opened automatically by incident-response-mesh.\n\n{details}",
+            head=branch_name,
+            base=repo.default_branch
+        )
+        
+        return {"status": "created", "pr_url": pr.html_url, "pr_number": pr.number}
+    
+    except GithubException as e:
+        return {"status": "error", "reason": str(e)}
+    
 _MOCK_DIFFS = {
     "checkout-service": (
         "diff --git a/cache/lru.py b/cache/lru.py\n"

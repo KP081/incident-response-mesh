@@ -5,7 +5,7 @@ Only runs after DiagnosisLoop exits with an approved hypothesis.
 
 from google.adk.agents import LlmAgent
 
-from tools.git_tools import fetch_git_diff
+from tools.git_tools import fetch_git_diff, open_remediation_pr
 from tools.report_tools import create_remediation_draft, render_postmortem
 
 from core.config import MODEL_NAME
@@ -29,16 +29,21 @@ def build_fix_advisor_agent() -> LlmAgent:
             "explanation tied to the cited log evidence.\n"
             'If create_remediation_draft\'s result has status "blocked", clearly say '
             "in your output that the action was NOT executed and a human denied it -- "
-            "do not describe it as completed."
-            "4. Call render_postmortem with a dict combining the service name, "
+            "do not describe it as completed.\n"
+            "4. If create_remediation_draft succeeded (not blocked), call "
+            "open_remediation_pr with the same service name, action, and details "
+            'to record it as a real PR. If its result has status "error", say in '
+            "your output that the PR could not be opened and include the reason -- "
+            "do not treat this as a failure of the remediation itself.\n"
+            "5. Call render_postmortem with a dict combining the service name, "
             "root cause, cited log lines, action, and details.\n"
-            "5. Output the final remediation plan as JSON: "
+            "6. Output the final remediation plan as JSON: "
             '{"action": ..., "details": ..., "postmortem_md": ...}.'
             "If critic_verdict shows approved: false, say so clearly instead of "
             "confidently recommending an action — this means the diagnosis loop "
             "could not confirm a hypothesis within its retry limit."
         ),
-        tools=[fetch_git_diff, create_remediation_draft, render_postmortem],
+        tools=[fetch_git_diff, open_remediation_pr, create_remediation_draft, render_postmortem],
         before_tool_callback=execution_guardrail_callback,
         output_key="remediation_plan",
     )

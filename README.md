@@ -47,7 +47,7 @@ _(free tier -- sleeps after 12h idle, first load may take a few seconds to wake)
 
 - Google ADK 2.9.1 (`LlmAgent`, `SequentialAgent`, `LoopAgent`, `DatabaseSessionService`, `before_tool_callback`)
 - Gemini 3.5 Flash-Lite
-- SQLite (via `DatabaseSessionService`, async driver `sqlite+aiosqlite`) for session/audit persistence
+- Postgres (Neon, via `DatabaseSessionService` + `asyncpg`) for session/audit persistence
 - Streamlit for the UI
 - Docker for containerization
 - `tenacity` for retry/backoff on transient API errors and malformed-output retries
@@ -122,10 +122,6 @@ that cites a `WARNING` over an unaddressed `FATAL` and confirms it rejects.
 
 ## Known limitations
 
-- SQLite session persistence is ephemeral on the current deployment target
-  -- fine for a demo, would need a managed Postgres for production.
-  `DatabaseSessionService` is SQLAlchemy-backed, so that's a `db_url`
-  change, not a code rewrite.
 - Git/GitHub integration is mocked (canned diffs per service) rather than a
   live `PyGithub` connection to a real repository.
 - The eval harness scores citation correctness and safety adherence; it

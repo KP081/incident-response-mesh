@@ -20,6 +20,8 @@ from core.config import DATABASE_URL, get_session_service_kwargs
 from core.parsing import parse_agent_json
 from tools.report_tools import render_postmortem
 
+from tools.telemetry_tools import seed_telemetry
+
 RETRYABLE_CODES = {429, 500, 502, 503, 504}
 
 APP_NAME = "incident_mesh"
@@ -45,6 +47,8 @@ async def _run_debug_with_retry(runner, message, user_id, session_id):
 async def run_incident(scenario_id: str, max_attempts: int = 3) -> dict:
     scenario_path = SCENARIOS_DIR / f"{scenario_id}.json"
     scenario = json.loads(scenario_path.read_text())
+
+    await seed_telemetry(scenario)
 
     last_error = None
     for attempt in range(1, max_attempts + 1):

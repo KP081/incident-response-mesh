@@ -27,6 +27,9 @@ from core.agent import root_agent
 from core.config import DATABASE_URL, get_session_service_kwargs
 from core.parsing import parse_agent_json
 from tools.report_tools import create_remediation_draft, render_postmortem
+from tools.git_tools import open_remediation_pr
+
+from tools.telemetry_tools import seed_telemetry
 
 st.set_page_config(page_title="Incident Response Mesh", layout="wide")
 
@@ -48,6 +51,7 @@ for key in (
     "triggered_scenario_id",
     "pending_scenario_id",
     "last_error",
+    "pr_result"
 ):
     if key not in st.session_state:
         st.session_state[key] = None
@@ -78,6 +82,9 @@ def get_event_loop():
 
 async def run_incident_for_ui(scenario_id: str) -> tuple[dict, str]:
     scenario = json.loads((SCENARIOS_DIR / f"{scenario_id}.json").read_text())
+    
+    await seed_telemetry(scenario)
+    
     session_service = DatabaseSessionService(
         db_url=DATABASE_URL, **get_session_service_kwargs()
     )
@@ -267,6 +274,12 @@ with right:
             c1, c2 = st.columns(2)
             if c1.button("✅ Approve & Execute"):
                 result = create_remediation_draft(**pending)
+                pr_result = open_remediation_pr(
+                    service_name=pending.get("service_name"),
+                    action=result["action"],
+                    details=result["details"],
+                )
+                st.session_state.pr_result = pr_result
                 md = build_postmortem_markdown(
                     state, st.session_state.run_id, result["action"], result["details"]
                 )
@@ -305,6 +318,12 @@ with right:
                 file_name=f"postmortem_incident_{st.session_state.run_id}.md",
                 mime="text/markdown",
             )
+            if st.session_state.get("pr_result"):
+                pr = st.session_state.pr_result
+                if pr.get("status") == "created":
+                    st.success(f"✅ PR opened: [{pr['pr_url']}]({pr['pr_url']})")
+                elif pr.get("status") == "error":
+                    st.warning(f"⚠️ GitHub PR nahi ban paya: {pr['reason']}")
 
         if st.session_state.triggered_scenario_id:
             with st.expander(

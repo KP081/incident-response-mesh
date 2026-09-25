@@ -4,7 +4,7 @@ import os
 
 from google.adk.tools.tool_context import ToolContext
 
-HIGH_RISK_ACTIONS = {"apply_hotfix", "restart_database", "rollback_deployment"}
+HIGH_RISK_ACTIONS = {"apply_hotfix", "restart_database", "rollback_deployment", "open_remediation_pr"}
 
 
 def execution_guardrail_callback(tool, args: dict, tool_context: ToolContext):
