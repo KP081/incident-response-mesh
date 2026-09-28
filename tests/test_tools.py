@@ -2,11 +2,13 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from tools.telemetry_tools import fetch_logs, query_metrics, SCENARIOS_DIR
-from tools.git_tools import fetch_git_diff
-from tools.report_tools import create_remediation_draft, render_postmortem
+from app import SCENARIOS_DIR
+from tools.telemetry_tools import fetch_logs, query_metrics, seed_telemetry
+from tools.report_tools import render_postmortem
 
 
 def _all_scenarios():
@@ -17,38 +19,34 @@ def test_scenario_fixtures_have_required_keys():
     scenarios = _all_scenarios()
     assert len(scenarios) >= 3
     required_top = {
-        "id",
-        "service",
-        "category",
-        "trigger_alert",
-        "metrics",
-        "logs",
-        "ground_truth",
+        "id", "service", "category", "trigger_alert", "metrics", "logs", "ground_truth",
     }
     for s in scenarios:
         assert required_top <= s.keys(), f"{s.get('id')} missing keys"
 
 
-def test_fetch_logs_returns_the_fatal_line_for_every_scenario():
+async def test_fetch_logs_returns_the_fatal_line_for_every_scenario():
     for s in _all_scenarios():
-        logs = fetch_logs(s["service"], severity="ALL", limit=50)
-        joined = " | ".join(f"{l['ts']} {l['level']} {l['msg']}" for l in logs)
-        assert s["ground_truth"]["faulty_line"] in joined
+        await seed_telemetry(s)
+        logs = await fetch_logs(s["service"], severity="ALL", limit=50)
+        joined = " | ".join(f"{l['level']} {l['msg']}" for l in logs)
+        # ts is re-anchored to real time at seed, so compare level + msg only
+        expected = s["ground_truth"]["faulty_line"].split(" ", 1)[1]
+        assert expected in joined
 
 
-def test_fetch_logs_severity_filter_excludes_info():
-    logs = fetch_logs("checkout-service", severity="WARNING", limit=50)
+async def test_fetch_logs_severity_filter_excludes_info():
+    scenario = next(s for s in _all_scenarios() if s["service"] == "checkout-service")
+    await seed_telemetry(scenario)
+    logs = await fetch_logs("checkout-service", severity="WARNING", limit=50)
     assert not any(l["level"] == "INFO" for l in logs)
 
 
-def test_query_metrics_returns_series_for_known_service():
-    result = query_metrics("checkout-service", "memory_usage_pct", window_minutes=15)
+async def test_query_metrics_returns_series_for_known_service():
+    scenario = next(s for s in _all_scenarios() if s["service"] == "checkout-service")
+    await seed_telemetry(scenario)
+    result = await query_metrics("checkout-service", "memory_usage_pct", window_minutes=15)
     assert result["found"] is True
-
-
-def test_fetch_git_diff_known_and_unknown_service():
-    assert "max_size" in fetch_git_diff("checkout-service", "abc123")
-    assert fetch_git_diff("totally-unknown-service", "abc123") == ""
 
 
 def test_render_postmortem_includes_evidence_and_action():

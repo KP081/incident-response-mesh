@@ -51,7 +51,7 @@ for key in (
     "triggered_scenario_id",
     "pending_scenario_id",
     "last_error",
-    "pr_result"
+    "pr_result",
 ):
     if key not in st.session_state:
         st.session_state[key] = None
@@ -82,9 +82,9 @@ def get_event_loop():
 
 async def run_incident_for_ui(scenario_id: str) -> tuple[dict, str]:
     scenario = json.loads((SCENARIOS_DIR / f"{scenario_id}.json").read_text())
-    
+
     await seed_telemetry(scenario)
-    
+
     session_service = DatabaseSessionService(
         db_url=DATABASE_URL, **get_session_service_kwargs()
     )

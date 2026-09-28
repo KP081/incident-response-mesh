@@ -4,7 +4,12 @@ import os
 
 from google.adk.tools.tool_context import ToolContext
 
-HIGH_RISK_ACTIONS = {"apply_hotfix", "restart_database", "rollback_deployment", "open_remediation_pr"}
+HIGH_RISK_ACTIONS = {
+    "apply_hotfix",
+    "restart_database",
+    "rollback_deployment",
+    "open_remediation_pr",
+}
 
 
 def execution_guardrail_callback(tool, args: dict, tool_context: ToolContext):
@@ -38,4 +43,14 @@ def execution_guardrail_callback(tool, args: dict, tool_context: ToolContext):
         tool_context.state["hitl_approved"] = approved
         if not approved:
             return {"status": "blocked", "reason": "human denied execution"}
+
+    if (
+        tool.name == "open_remediation_pr"
+        and tool_context.state.get("hitl_approved") is False
+    ):
+        return {
+            "status": "blocked",
+            "reason": "remediation action was not approved -- PR not opened",
+        }
+
     return None

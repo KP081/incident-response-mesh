@@ -43,7 +43,12 @@ def build_fix_advisor_agent() -> LlmAgent:
             "confidently recommending an action — this means the diagnosis loop "
             "could not confirm a hypothesis within its retry limit."
         ),
-        tools=[fetch_git_diff, open_remediation_pr, create_remediation_draft, render_postmortem],
+        tools=[
+            fetch_git_diff,
+            open_remediation_pr,
+            create_remediation_draft,
+            render_postmortem,
+        ],
         before_tool_callback=execution_guardrail_callback,
         output_key="remediation_plan",
     )

@@ -160,8 +160,7 @@ async def fetch_logs(service_name: str, severity: str, limit: int) -> list[dict]
         rows = result.fetchall()
 
     logs = [
-        {"ts": r.ts.strftime("%H:%M:%S"), "level": r.level, "msg": r.msg}
-        for r in rows
+        {"ts": r.ts.strftime("%H:%M:%S"), "level": r.level, "msg": r.msg} for r in rows
     ]
 
     if severity != "ALL":

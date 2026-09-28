@@ -17,7 +17,11 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from core.config import DATABASE_URL, get_session_service_kwargs
 
-_engine = create_async_engine(DATABASE_URL, **get_session_service_kwargs())
+from sqlalchemy.pool import NullPool
+
+_engine = create_async_engine(
+    DATABASE_URL, poolclass=NullPool, **get_session_service_kwargs()
+)
 metadata = MetaData()
 
 service_logs = Table(

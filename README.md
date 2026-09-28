@@ -48,6 +48,7 @@ _(free tier -- sleeps after 12h idle, first load may take a few seconds to wake)
 - Google ADK 2.9.1 (`LlmAgent`, `SequentialAgent`, `LoopAgent`, `DatabaseSessionService`, `before_tool_callback`)
 - Gemini 3.5 Flash-Lite
 - Postgres (Neon, via `DatabaseSessionService` + `asyncpg`) for session/audit persistence
+- Git integration — PyGithub, real commits/diffs/PRs on a sandbox repo.
 - Streamlit for the UI
 - Docker for containerization
 - `tenacity` for retry/backoff on transient API errors and malformed-output retries
@@ -122,8 +123,6 @@ that cites a `WARNING` over an unaddressed `FATAL` and confirms it rejects.
 
 ## Known limitations
 
-- Git/GitHub integration is mocked (canned diffs per service) rather than a
-  live `PyGithub` connection to a real repository.
 - The eval harness scores citation correctness and safety adherence; it
   does not score exact remediation-action-label match, since
   "apply_hotfix" vs. "rollback_deployment" is left as a choice the model
