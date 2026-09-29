@@ -121,6 +121,48 @@ for these 15 cases. The Critic's rejection logic is separately verified in
 isolation by `tests/manual_critic_check.py`, which feeds it a hypothesis
 that cites a `WARNING` over an unaddressed `FATAL` and confirms it rejects.
 
+## Critic Loop in Action
+
+The eval harness (`evals/run_business_metrics.py`) scores every run twice:
+on LogParserAgent's *first* hypothesis (before the Critic sees it) and on
+the *final* one, so the Critic's actual contribution is measured inside
+each run rather than assumed.
+
+**Original 15 scenarios** ("easy"): first-pass accuracy was already 15/15.
+The Critic never had a real error to catch here -- correctly diagnosing
+this, 3 harder scenarios were added specifically to stress it.
+
+**3 "hard" scenarios**, designed to break the "cite the highest-severity
+log line" heuristic (e.g. a WARNING is the true root cause, a later FATAL
+is just its downstream symptom):
+
+| | first pass | after Critic loop |
+|---|---|---|
+| Correct root cause | 6/9 (3 trials × 3 scenarios) | **9/9** |
+
+Example (`scenario_16_stale_cache`, a real run):
+
+> **Attempt 1** -- cites only `assertion failed: price mismatch...` (the
+> FATAL symptom). **Critic: rejected** -- "cites only a downstream/symptom
+> line while an earlier line names a specific configuration defect
+> (`cache TTL misconfigured: ttl_seconds=0`) that the hypothesis never
+> cites."
+>
+> **Attempt 2** -- cites the TTL misconfiguration line and traces it
+> through to the price-mismatch failure. **Critic: approved.**
+
+Getting here took two iterations on the Critic's own rules: an initial
+version over-corrected and started rejecting valid diagnoses on the
+original 15 (rejections went 1 -> 7, with malformed-output crashes on
+2 scenarios). The fix was narrowing the rule to specific configuration
+defects ("misconfigured", "expired", "rotated", ...) rather than any
+earlier log line, and making FixAdvisorAgent always emit valid JSON
+(`action: "escalate_to_human"`) when the Critic can't confirm a
+hypothesis, instead of replying in free text.
+
+Run it yourself: `evals/results.json` and `evals/explain_run.py
+<scenario_id>` show the full transcript for any run.
+
 ## Known limitations
 
 - The eval harness scores citation correctness and safety adherence; it

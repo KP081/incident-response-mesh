@@ -38,10 +38,13 @@ def build_fix_advisor_agent() -> LlmAgent:
             "5. Call render_postmortem with a dict combining the service name, "
             "root cause, cited log lines, action, and details.\n"
             "6. Output the final remediation plan as JSON: "
-            '{"action": ..., "details": ..., "postmortem_md": ...}.'
-            "If critic_verdict shows approved: false, say so clearly instead of "
-            "confidently recommending an action — this means the diagnosis loop "
-            "could not confirm a hypothesis within its retry limit."
+            '{"action": ..., "details": ..., "postmortem_md": ...}.\n'
+            "If critic_verdict shows approved: false, this JSON is still "
+            'required -- set "action" to "escalate_to_human", and make '
+            '"details" state plainly that the diagnosis loop could not '
+            "confirm a hypothesis within its retry limit, so no "
+            "remediation was attempted. Do not skip the JSON or reply in "
+            "plain prose for this case."
         ),
         tools=[
             fetch_git_diff,

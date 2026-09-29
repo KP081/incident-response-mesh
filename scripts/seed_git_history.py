@@ -94,6 +94,21 @@ SERVICE_CHANGES = {
         "RATE_LIMIT_PER_KEY = 100\n",
         "RATE_LIMIT_PER_KEY = 100  # unchanged since launch, never revisited as traffic grew\n",
     ),
+    "cache-invalidator": (
+        "config/cache_ttl.yaml",
+        "ttl_seconds: 300\n",
+        "ttl_seconds: 0  # invalidation storm, price mismatch downstream\n",
+    ),
+    "webhook-dispatcher": (
+        "infra/tls_cert_renewal.yaml",
+        "auto_renew: true\n",
+        "auto_renew: false  # renewal disabled during migration, cert expired unnoticed\n",
+    ),
+    "shipping-service": (
+        "config/label_api_key.py",
+        "API_KEY = os.environ['LABEL_API_KEY_V1']\n",
+        "API_KEY = os.environ['LABEL_API_KEY_V2']  # rotated without updating stored secret\n",
+    ),
 }
 
 

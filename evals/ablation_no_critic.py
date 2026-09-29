@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+os.environ.setdefault("EVAL_DRY_RUN", "true")
 
 from google.adk.agents import SequentialAgent
 from google.adk.runners import Runner
@@ -25,6 +26,8 @@ from agents.log_parser_agent import build_log_parser_agent
 from agents.triage_agent import build_triage_agent
 from app import SCENARIOS_DIR, _run_debug_with_retry
 from evals.run_business_metrics import score_run
+
+from tools.telemetry_tools import seed_telemetry
 
 APP_NAME = "incident_mesh_baseline"
 
@@ -47,6 +50,8 @@ def build_baseline_agent() -> SequentialAgent:
 
 async def run_baseline_incident(scenario_id: str) -> dict:
     scenario = json.loads((SCENARIOS_DIR / f"{scenario_id}.json").read_text())
+    await seed_telemetry(scenario)
+
     session_service = InMemorySessionService()
     run_id = f"{scenario_id}_baseline_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%f')}"
     session = await session_service.create_session(
@@ -79,7 +84,7 @@ async def main():
         print(f"[baseline] Running {scenario_id}...")
         try:
             state = await run_baseline_incident(scenario_id)
-            scores = score_run(state, scenario["ground_truth"])
+            scores = score_run(state, scenario)
         except Exception as e:
             scores = {"error": str(e)}
         results.append({"scenario_id": scenario_id, **scores})

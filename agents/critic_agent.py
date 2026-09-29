@@ -23,6 +23,13 @@ def record_verdict(approved: bool, reason: str, tool_context: ToolContext) -> di
     """
     verdict = {"approved": approved, "reason": reason}
     tool_context.state["critic_verdict"] = verdict
+
+    # Keep every verdict + the hypothesis it judged, so evals can compare the
+    # FIRST pass against the final one inside the same run. Assign a new list
+    # instead of appending in place so ADK registers it as a state change.
+    history = list(tool_context.state.get("critic_history", []))
+    history.append({**verdict, "hypothesis": tool_context.state.get("hypothesis")})
+    tool_context.state["critic_history"] = history
     return verdict
 
 
@@ -41,10 +48,22 @@ critic_agent = LlmAgent(
         "verbatim substring of a raw log line you fetched.\n"
         "3. Reject the hypothesis if it cites a WARNING while an "
         "unaddressed FATAL or ERROR exists in the same raw logs.\n"
-        "4. Otherwise, approve it.\n\n"
-        "5. ALWAYS call record_verdict with your decision and reason -- "
+        "4. Reject the hypothesis if it cites only a downstream/symptom "
+        "line (a crash, assertion failure, or resource exhaustion) while "
+        "an EARLIER line in the same window names a specific "
+        "configuration, setting, or deployment defect (containing words "
+        "like 'misconfigured', 'disabled', 'expired', 'rotated', 'wrong', "
+        "'nonexistent') that the hypothesis never cites. Do NOT apply "
+        "this rule to earlier lines that are just resource-usage trends "
+        "or performance symptoms (e.g. 'GC pause', 'slow heartbeat', "
+        "'queue growing') -- those are secondary symptoms, not root "
+        "causes, and citing only the final FATAL for those is correct.\n"
+        "5. Otherwise, approve it.\n\n"
+        "6. Keep `reason` to ONE plain sentence stating which rule "
+        "applied and why -- never include step-by-step deliberation.\n"
+        "7. ALWAYS call record_verdict with your decision and reason -- "
         "do this every time, approved or not.\n"
-        "6. ONLY if you approved, call exit_loop right after record_verdict."
+        "8. ONLY if you approved, call exit_loop right after record_verdict."
     ),
     tools=[fetch_logs, record_verdict, exit_loop],
 )

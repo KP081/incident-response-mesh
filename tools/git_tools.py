@@ -34,6 +34,9 @@ SERVICE_PATHS = {
     "payment-gateway": "config/timeouts.yaml",
     "search-service": "config/search_index.yaml",
     "checkout-payments-service": "config/payment_processor.py",
+    "cache-invalidator": "config/cache_ttl.yaml",
+    "webhook-dispatcher": "infra/tls_cert_renewal.yaml",
+    "shipping-service": "config/label_api_key.py",
 }
 
 
@@ -76,6 +79,9 @@ def open_remediation_pr(
     """Opens a real branch + PR on the sandbox repo recording this
     incident's remediation. Returns pr_url on success, or an error dict
     the agent/UI can surface without crashing the run."""
+    if os.environ.get("EVAL_DRY_RUN") == "true":
+        return {"status": "skipped", "reason": "EVAL_DRY_RUN=true -- no PR opened"}
+
     token = os.environ["GITHUB_PAT"]
     repo_name = os.environ["GITHUB_SANDBOX_REPO"]
 

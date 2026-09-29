@@ -1,0 +1,44 @@
+{
+  "id": "scenario_16_stale_cache",
+  "service": "cache-invalidator",
+  "category": "bad_deploy",
+  "difficulty": "hard",
+  "trigger_alert": {
+    "source": "pagerduty",
+    "summary": "Price mismatch alerts on cache-invalidator",
+    "severity": "critical",
+    "timestamp": "2026-09-01T05:00:00Z"
+  },
+  "metrics": {
+    "eviction_rate_per_sec": [200, 8000, 35000, 41000, 39000],
+    "window_minutes": 15
+  },
+  "logs": [
+    {
+      "ts": "05:00:00",
+      "level": "INFO",
+      "msg": "cache-invalidator started, TTL policy loaded"
+    },
+    {
+      "ts": "05:00:05",
+      "level": "WARNING",
+      "msg": "cache TTL misconfigured: ttl_seconds=0, invalidation storm expected"
+    },
+    {
+      "ts": "05:00:40",
+      "level": "WARNING",
+      "msg": "invalidation storm detected: 38000 evictions/sec"
+    },
+    {
+      "ts": "05:01:10",
+      "level": "FATAL",
+      "msg": "assertion failed: price mismatch between cache and DB, aborting transaction batch"
+    },
+    { "ts": "05:01:15", "level": "INFO", "msg": "batch processor restarting" }
+  ],
+  "ground_truth": {
+    "root_cause": "cache-invalidator's TTL was misconfigured to 0, triggering an invalidation storm that produced stale/inconsistent reads and the downstream price-mismatch assertion failure",
+    "correct_action": "rollback_deployment",
+    "faulty_line": "05:00:05 WARNING cache TTL misconfigured: ttl_seconds=0, invalidation storm expected"
+  }
+}

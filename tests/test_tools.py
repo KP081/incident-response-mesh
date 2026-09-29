@@ -19,7 +19,13 @@ def test_scenario_fixtures_have_required_keys():
     scenarios = _all_scenarios()
     assert len(scenarios) >= 3
     required_top = {
-        "id", "service", "category", "trigger_alert", "metrics", "logs", "ground_truth",
+        "id",
+        "service",
+        "category",
+        "trigger_alert",
+        "metrics",
+        "logs",
+        "ground_truth",
     }
     for s in scenarios:
         assert required_top <= s.keys(), f"{s.get('id')} missing keys"
@@ -45,7 +51,9 @@ async def test_fetch_logs_severity_filter_excludes_info():
 async def test_query_metrics_returns_series_for_known_service():
     scenario = next(s for s in _all_scenarios() if s["service"] == "checkout-service")
     await seed_telemetry(scenario)
-    result = await query_metrics("checkout-service", "memory_usage_pct", window_minutes=15)
+    result = await query_metrics(
+        "checkout-service", "memory_usage_pct", window_minutes=15
+    )
     assert result["found"] is True
 
 

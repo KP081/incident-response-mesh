@@ -1,6 +1,6 @@
 import os
 
-MODEL_NAME = "gemini-3.5-flash-lite"
+MODEL_NAME = os.environ.get("MODEL_NAME", "gemini-3.5-flash-lite")
 
 try:
     import streamlit as st
