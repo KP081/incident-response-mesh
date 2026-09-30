@@ -1,5 +1,7 @@
 # Incident Response Mesh
 
+![Tests](https://github.com/KP081/incident-response-mesh/actions/workflows/tests.yml/badge.svg)
+
 A 4-agent incident-response system built on Google ADK (Gemini) that triages
 a raw alert, investigates logs/metrics, verifies its own diagnosis before
 acting, and drafts a human-gated remediation plan with a full postmortem.
@@ -9,136 +11,153 @@ _(free tier -- sleeps after 12h idle, first load may take a few seconds to wake)
 
 ## Architecture
 
-```
-                 [ Alert (PagerDuty-style JSON) ]
-                              │
-                              ▼
-                     ┌─────────────────┐
-                     │   TriageAgent   │  extracts service/severity/window
-                     └────────┬────────┘
-                              │
-                              ▼
-                  ┌─────────────────────┐
-                  │   DiagnosisLoop     │  (LoopAgent, max 3 iterations)
-                  │  ┌───────────────┐  │
-                  │  │LogParserAgent │  │  proposes root cause + citations
-                  │  └──────┬────────┘  │
-                  │         ▼           │
-                  │  ┌───────────────┐  │
-                  │  │  CriticAgent  │──┼──► reject: loop retries with feedback
-                  │  └──────┬────────┘  │
-                  └─────────┼───────────┘
-                            │ approve (exit_loop)
-                            ▼
-                  ┌─────────────────┐
-                  │ FixAdvisorAgent │  drafts remediation + postmortem
-                  └────────┬────────┘
-                           │
-                           ▼
-              [ HITL gate on high-risk actions ]
-```
+             [ Alert (PagerDuty-style JSON) ]
+                          │
+                          ▼
+                 ┌─────────────────┐
+                 │   TriageAgent   │  extracts service/severity/window
+                 └────────┬────────┘
+                          │
+                          ▼
+              ┌─────────────────────┐
+              │   DiagnosisLoop     │  (LoopAgent, max 3 iterations)
+              │  ┌───────────────┐  │
+              │  │LogParserAgent │  │  proposes root cause + citations
+              │  └──────┬────────┘  │
+              │         ▼           │
+              │  ┌───────────────┐  │
+              │  │  CriticAgent  │──┼──► reject: loop retries with feedback
+              │  └──────┬────────┘  │
+              └─────────┼───────────┘
+                        │ approve (exit_loop)
+                        ▼
+              ┌─────────────────┐
+              │ FixAdvisorAgent │  drafts remediation + postmortem + PR
+              └────────┬────────┘
+                       │
+                       ▼
+          [ HITL gate on high-risk actions ]
 
 - **TriageAgent** -- pure extraction, no diagnosis, no tools.
-- **LogParserAgent** -- calls mock telemetry tools, proposes a hypothesis with verbatim log-line citations.
-- **CriticAgent** -- independently re-fetches raw logs and rejects any hypothesis whose citation isn't verbatim, or that cites a `WARNING` while an unaddressed `FATAL`/`ERROR` exists.
-- **FixAdvisorAgent** -- drafts a remediation action; high-risk actions (`rollback_deployment`, `apply_hotfix`, `restart_database`) are gated by a human-in-the-loop callback before they can "execute."
+- **LogParserAgent** -- queries real Postgres-backed logs/metrics tables (seeded fresh per run, see [Telemetry](#telemetry--git-data) below), proposes a hypothesis with verbatim log-line citations.
+- **CriticAgent** -- independently re-fetches the same raw logs and rejects any hypothesis whose citation isn't verbatim, that cites a `WARNING` while an unaddressed `FATAL`/`ERROR` exists, or that cites only a downstream symptom while an earlier line names the actual root-cause defect.
+- **FixAdvisorAgent** -- fetches the real git diff for the affected service, drafts a remediation action, and opens a real PR on a sandbox repo once approved. High-risk actions (`rollback_deployment`, `apply_hotfix`, `restart_database`, opening the PR itself) are gated by a human-in-the-loop callback -- enforced twice: once on the drafted action, once again on the PR tool call itself, so a model that ignores its own "don't proceed" instruction still can't open a real PR.
+
+Every agent turn and tool call is logged as a structured JSON line (`core/observability.py`) -- agent name, duration, tool args (secrets redacted), and success/failure.
 
 ## Tech stack
 
-- Google ADK 2.9.1 (`LlmAgent`, `SequentialAgent`, `LoopAgent`, `DatabaseSessionService`, `before_tool_callback`)
+- Google ADK 2.9.1 (`LlmAgent`, `SequentialAgent`, `LoopAgent`, `DatabaseSessionService`, agent/tool callbacks)
 - Gemini 3.5 Flash-Lite
-- Postgres (Neon, via `DatabaseSessionService` + `asyncpg`) for session/audit persistence
-- Git integration — PyGithub, real commits/diffs/PRs on a sandbox repo.
+- Postgres (Neon, via `DatabaseSessionService` + SQLAlchemy async core) for session/audit persistence _and_ for real telemetry (logs/metrics), swappable to local SQLite in dev via one env var
+- Git integration -- PyGithub, real commits/diffs/PRs on a sandbox repo
+- Structured JSON logging per agent/tool step
 - Streamlit for the UI
 - Docker for containerization
+- GitHub Actions CI running the test suite on every push
 - `tenacity` for retry/backoff on transient API errors and malformed-output retries
+
+## Telemetry & git data
+
+Logs and metrics are **not** read from static JSON fixtures at query time.
+`seed_telemetry()` ingests each scenario's data into real Postgres tables
+(`service_logs`, `service_metrics`) with timestamps re-anchored to "now"
+right before a run, and `LogParserAgent`'s tools run real SQL queries
+against them -- same code path locally (SQLite) and in production (Neon).
+
+Git diffs are real too: `scripts/seed_git_history.py` seeds two commits
+per service (before/after) on a sandbox GitHub repo, and `fetch_git_diff()`
+fetches the actual latest commit diff via the GitHub API.
+
+What's still synthetic: the underlying incident data itself (no real
+service is actually failing) -- this is a scenario-driven demo, not a
+live production integration.
 
 ## Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/incident-response-mesh.git
+git clone https://github.com/KP081/incident-response-mesh.git
 cd incident-response-mesh
 uv sync
-cp .env.example .env   # fill in GOOGLE_API_KEY
+cp .env.example .env   # fill in GOOGLE_API_KEY, DATABASE_URL, GITHUB_PAT, GITHUB_SANDBOX_REPO
+uv run python scripts/seed_git_history.py   # one-time: seeds the sandbox repo's commit history
 ```
+
+See the comments in `.env.example` for exactly how to get each value
+(Neon connection string format, GitHub fine-grained PAT scopes, etc).
 
 ## Usage
 
 ```bash
 # Single scenario via CLI
-uv run app.py scenario_01_oom
+uv run python app.py scenario_01_oom
 
-# Isolated test of the Critic's rejection logic
-uv run tests/manual_critic_check.py
+# Full domain eval across all scenarios (paired first-pass vs final scoring)
+# Use an isolated DB so eval runs never touch live demo data, and
+# EVAL_DRY_RUN so it never opens real PRs on the sandbox repo
+DATABASE_URL="sqlite+aiosqlite:///eval.db" HITL_AUTO_APPROVE=true \
+    uv run python evals/run_business_metrics.py --trials 3 --difficulty all
 
-# Full domain eval across all scenarios (auto-approves HITL so it doesn't hang)
-HITL_AUTO_APPROVE=true uv run python3 evals/run_business_metrics.py
+# Print the full diagnosis-loop transcript for one scenario
+DATABASE_URL="sqlite+aiosqlite:///eval.db" HITL_AUTO_APPROVE=true \
+    uv run python evals/explain_run.py scenario_16_stale_cache
 
 # Ablation: same eval, CriticAgent removed entirely
-HITL_AUTO_APPROVE=true uv run python3 evals/ablation_no_critic.py
+DATABASE_URL="sqlite+aiosqlite:///eval.db" HITL_AUTO_APPROVE=true \
+    uv run python evals/ablation_no_critic.py
 
 # Streamlit UI
 HITL_CAPTURE_ONLY=true uv run streamlit run streamlit_app.py
 
-# Tests (pure-function tools + agent-mesh construction, no API calls)
-uv run pytest -v
+# Tests -- tool/telemetry tests run against an isolated local SQLite DB
+# (see tests/conftest.py); GitHub integration tests hit the real API and
+# auto-skip if GITHUB_PAT isn't set
+uv run pytest tests/ -v
 ```
 
 ## Docker
 
 ```bash
 docker build -t incident-mesh .
-docker run -p 8080:8080 -e GOOGLE_API_KEY=your_key incident-mesh
+docker run -p 8080:8080 \
+    -e GOOGLE_API_KEY=your_key \
+    -e DATABASE_URL=your_postgres_url \
+    -e GITHUB_PAT=your_pat \
+    -e GITHUB_SANDBOX_REPO=your-username/repo \
+    incident-mesh
 ```
 
 ## Project structure
 
-```
 incident-response-mesh/
-├── agents/           # TriageAgent, LogParserAgent, CriticAgent, FixAdvisorAgent
-├── core/             # agent composition, HITL callback, config, JSON parsing
-├── tools/            # mock telemetry, git, and postmortem-generation tools
-├── data/scenarios/   # 15 synthetic incident fixtures
-├── evals/            # business-metric harness + Critic ablation study
-├── tests/            # pure-function tests + isolated Critic test
-├── app.py            # CLI entrypoint
-└── streamlit_app.py  # web UI
-```
-
-## Eval results
-
-15 synthetic incident scenarios spanning OOM, DB deadlocks, auth
-regressions, network timeouts, bad deploys, disk-full, and rate-limit
-misconfigurations.
-
-| Metric            | With Critic  | Without Critic (ablation) |
-| ----------------- | ------------ | ------------------------- |
-| Citation accuracy | 15/15 (100%) | 15/15 (100%)              |
-
-The ablation shows no measurable lift on this benchmark --
-`LogParserAgent`'s own severity-prioritization instruction was sufficient
-for these 15 cases. The Critic's rejection logic is separately verified in
-isolation by `tests/manual_critic_check.py`, which feeds it a hypothesis
-that cites a `WARNING` over an unaddressed `FATAL` and confirms it rejects.
+├── .github/workflows/ # CI: runs the test suite on every push
+├── agents/ # TriageAgent, LogParserAgent, CriticAgent, FixAdvisorAgent
+├── core/ # agent composition, HITL callback, DB engine, observability, config
+├── tools/ # real Postgres-backed telemetry, real GitHub diff/PR tools, postmortem generation
+├── scripts/ # one-time setup (seeds the sandbox repo's commit history)
+├── data/scenarios/ # 18 synthetic incident fixtures (15 original + 3 designed to stress the Critic)
+├── evals/ # business-metric harness, Critic ablation, transcript viewer
+├── tests/ # tool tests (isolated DB) + real-GitHub integration tests + manual Critic check
+├── app.py # CLI entrypoint
+└── streamlit_app.py # web UI
 
 ## Critic Loop in Action
 
 The eval harness (`evals/run_business_metrics.py`) scores every run twice:
-on LogParserAgent's *first* hypothesis (before the Critic sees it) and on
-the *final* one, so the Critic's actual contribution is measured inside
+on LogParserAgent's _first_ hypothesis (before the Critic sees it) and on
+the _final_ one, so the Critic's actual contribution is measured inside
 each run rather than assumed.
 
-**Original 15 scenarios** ("easy"): first-pass accuracy was already 15/15.
-The Critic never had a real error to catch here -- correctly diagnosing
-this, 3 harder scenarios were added specifically to stress it.
+**Original 15 scenarios:** first-pass accuracy was already 15/15 -- the
+Critic never had a real error to catch here. 3 harder scenarios were then
+added specifically to stress the "cite the highest-severity log line"
+heuristic (e.g. a WARNING is the true root cause, a later FATAL is just
+its downstream symptom):
 
-**3 "hard" scenarios**, designed to break the "cite the highest-severity
-log line" heuristic (e.g. a WARNING is the true root cause, a later FATAL
-is just its downstream symptom):
-
-| | first pass | after Critic loop |
-|---|---|---|
-| Correct root cause | 6/9 (3 trials × 3 scenarios) | **9/9** |
+|                                  | first pass | after Critic loop |
+| -------------------------------- | ---------- | ----------------- |
+| Original 15 scenarios            | 15/15      | 15/15             |
+| 3 hard scenarios (3 trials each) | 6/9        | **9/9**           |
 
 Example (`scenario_16_stale_cache`, a real run):
 
@@ -161,17 +180,29 @@ earlier log line, and making FixAdvisorAgent always emit valid JSON
 hypothesis, instead of replying in free text.
 
 Run it yourself: `evals/results.json` and `evals/explain_run.py
-<scenario_id>` show the full transcript for any run.
+<scenario_id>` show the full transcript for any run. The Critic's
+rejection logic is also verified in isolation by
+`tests/manual_critic_check.py`.
 
 ## Known limitations
 
 - The eval harness scores citation correctness and safety adherence; it
   does not score exact remediation-action-label match, since
-  "apply_hotfix" vs. "rollback_deployment" is left as a choice the model
-  can reasonably make either way.
+  "apply_hotfix" vs. "rollback_deployment" is a choice the model can
+  reasonably make either way.
+- FixAdvisorAgent's final JSON output occasionally comes back truncated/
+  malformed (intermittent, not yet root-caused) after otherwise-successful
+  tool calls; `app.py` retries the whole run when this happens.
+  `open_remediation_pr()` is idempotent against this (skips instead of
+  duplicating a PR if one was already opened for the same service in the
+  last 10 minutes), so the retry is safe, just not fully explained yet.
+  `core/observability.py` now logs each agent's raw final output, so the
+  next occurrence will have a full transcript instead of a fragment.
+- Session/telemetry data lives in a single shared Postgres instance with
+  no per-user isolation -- fine for a single-operator demo, not for a
+  real multi-tenant deployment.
 
 ---
 
 See [`docs/INTERVIEW_NOTES.md`](docs/INTERVIEW_NOTES.md) for a detailed
-write-up of the engineering issues hit during development and the ablation
-study's findings.
+write-up of the engineering issues hit during development.
