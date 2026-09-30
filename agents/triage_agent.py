@@ -10,6 +10,7 @@ from core.config import MODEL_NAME
 
 from pydantic import BaseModel
 
+from core.observability import before_agent_logging_callback, after_agent_logging_callback
 
 class TriageResult(BaseModel):
     service_name: str
@@ -37,6 +38,8 @@ def build_triage_agent() -> LlmAgent:
         ),
         output_schema=TriageResult,
         output_key="triage_result",
+        before_agent_callback=before_agent_logging_callback,
+        after_agent_callback=after_agent_logging_callback,
     )
 
 

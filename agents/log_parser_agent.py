@@ -11,6 +11,7 @@ from tools.telemetry_tools import fetch_logs, query_metrics
 
 from core.config import MODEL_NAME
 
+from core.observability import (before_agent_logging_callback, after_agent_logging_callback, before_tool_logging_callback, after_tool_logging_callback)
 
 def build_log_parser_agent() -> LlmAgent:
     return LlmAgent(
@@ -37,6 +38,10 @@ def build_log_parser_agent() -> LlmAgent:
         ),
         tools=[query_metrics, fetch_logs],
         output_key="hypothesis",
+        before_agent_callback=before_agent_logging_callback,
+        after_agent_callback=after_agent_logging_callback,
+        before_tool_callback=before_tool_logging_callback,
+        after_tool_callback=after_tool_logging_callback,
     )
 
 

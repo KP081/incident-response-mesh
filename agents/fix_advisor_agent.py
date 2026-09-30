@@ -9,7 +9,8 @@ from tools.git_tools import fetch_git_diff, open_remediation_pr
 from tools.report_tools import create_remediation_draft, render_postmortem
 
 from core.config import MODEL_NAME
-from core.callbacks import execution_guardrail_callback
+from core.callbacks import fix_advisor_tool_callback
+from core.observability import before_agent_logging_callback, after_agent_logging_callback, after_tool_logging_callback
 
 
 def build_fix_advisor_agent() -> LlmAgent:
@@ -52,8 +53,11 @@ def build_fix_advisor_agent() -> LlmAgent:
             create_remediation_draft,
             render_postmortem,
         ],
-        before_tool_callback=execution_guardrail_callback,
         output_key="remediation_plan",
+        before_agent_callback=before_agent_logging_callback,
+        after_agent_callback=after_agent_logging_callback,
+        before_tool_callback=fix_advisor_tool_callback,
+        after_tool_callback=after_tool_logging_callback,
     )
 
 

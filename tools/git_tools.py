@@ -14,7 +14,7 @@ recording the incident's remediation, once a human has approved it.
 """
 
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from github import Auth, Github, GithubException
 
@@ -76,9 +76,6 @@ def fetch_git_diff(service_name: str) -> str:
 def open_remediation_pr(
     service_name: str, action: str, details: str, tool_context=None
 ) -> dict:
-    """Opens a real branch + PR on the sandbox repo recording this
-    incident's remediation. Returns pr_url on success, or an error dict
-    the agent/UI can surface without crashing the run."""
     if os.environ.get("EVAL_DRY_RUN") == "true":
         return {"status": "skipped", "reason": "EVAL_DRY_RUN=true -- no PR opened"}
 
@@ -88,16 +85,23 @@ def open_remediation_pr(
     try:
         gh = Github(auth=Auth.Token(token))
         repo = gh.get_repo(repo_name)
-        base = repo.get_branch(repo.default_branch)
 
+        recent_cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
+        for pr in repo.get_pulls(state="open"):
+            if service_name in pr.title and pr.created_at.replace(tzinfo=timezone.utc) > recent_cutoff:
+                return {
+                    "status": "skipped",
+                    "reason": f"an open PR for {service_name} was already created in the last 10 min (#{pr.number})",
+                    "pr_url": pr.html_url,
+                }
+
+        base = repo.get_branch(repo.default_branch)
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
         branch_name = f"incident-fix/{service_name}-{ts}"
         repo.create_git_ref(ref=f"refs/heads/{branch_name}", sha=base.commit.sha)
 
         file_path = f"remediation-log/{service_name}-{ts}.md"
-        content = (
-            f"# Remediation: {service_name}\n\n**Action:** {action}\n\n{details}\n"
-        )
+        content = f"# Remediation: {service_name}\n\n**Action:** {action}\n\n{details}\n"
         repo.create_file(
             path=file_path,
             message=f"incident-response-mesh: {action} for {service_name}",
