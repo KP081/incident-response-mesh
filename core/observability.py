@@ -22,6 +22,12 @@ if not logger.handlers:
 
 _REDACT_KEYS = {"token", "pat", "password", "secret", "api_key"}
 
+_OUTPUT_KEYS = {
+    "TriageAgent": "triage_result",
+    "LogParserAgent": "hypothesis",
+    "FixAdvisorAgent": "remediation_plan",
+}
+
 
 def log_event(event: str, **fields) -> None:
     record = {"ts": datetime.now(timezone.utc).isoformat(), "event": event, **fields}
@@ -41,7 +47,14 @@ def before_agent_logging_callback(callback_context):
 def after_agent_logging_callback(callback_context):
     start = callback_context.state.get("_agent_start_ts")
     duration_ms = round((time.monotonic() - start) * 1000, 1) if start else None
-    log_event("agent_end", agent=callback_context.agent_name, duration_ms=duration_ms)
+    key = _OUTPUT_KEYS.get(callback_context.agent_name)
+    raw = callback_context.state.get(key) if key else None
+    log_event(
+        "agent_end",
+        agent=callback_context.agent_name,
+        duration_ms=duration_ms,
+        raw_output=repr(raw)[:1500],
+    )
     return None
 
 
@@ -54,6 +67,8 @@ def before_tool_logging_callback(tool, args, tool_context):
 def after_tool_logging_callback(tool, args, tool_context, tool_response):
     start = tool_context.state.get(f"_tool_start_{tool.name}")
     duration_ms = round((time.monotonic() - start) * 1000, 1) if start else None
-    ok = not (isinstance(tool_response, dict) and tool_response.get("status") == "error")
+    ok = not (
+        isinstance(tool_response, dict) and tool_response.get("status") == "error"
+    )
     log_event("tool_result", tool=tool.name, duration_ms=duration_ms, ok=ok)
     return None

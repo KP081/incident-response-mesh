@@ -57,6 +57,7 @@ def execution_guardrail_callback(tool, args: dict, tool_context: ToolContext):
 
     return None
 
+
 def fix_advisor_tool_callback(tool, args, tool_context):
     before_tool_logging_callback(tool, args, tool_context)
     return execution_guardrail_callback(tool, args, tool_context)

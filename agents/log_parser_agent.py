@@ -11,7 +11,13 @@ from tools.telemetry_tools import fetch_logs, query_metrics
 
 from core.config import MODEL_NAME
 
-from core.observability import (before_agent_logging_callback, after_agent_logging_callback, before_tool_logging_callback, after_tool_logging_callback)
+from core.observability import (
+    before_agent_logging_callback,
+    after_agent_logging_callback,
+    before_tool_logging_callback,
+    after_tool_logging_callback,
+)
+
 
 def build_log_parser_agent() -> LlmAgent:
     return LlmAgent(

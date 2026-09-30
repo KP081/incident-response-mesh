@@ -88,7 +88,10 @@ def open_remediation_pr(
 
         recent_cutoff = datetime.now(timezone.utc) - timedelta(minutes=10)
         for pr in repo.get_pulls(state="open"):
-            if service_name in pr.title and pr.created_at.replace(tzinfo=timezone.utc) > recent_cutoff:
+            if (
+                service_name in pr.title
+                and pr.created_at.replace(tzinfo=timezone.utc) > recent_cutoff
+            ):
                 return {
                     "status": "skipped",
                     "reason": f"an open PR for {service_name} was already created in the last 10 min (#{pr.number})",
@@ -101,7 +104,9 @@ def open_remediation_pr(
         repo.create_git_ref(ref=f"refs/heads/{branch_name}", sha=base.commit.sha)
 
         file_path = f"remediation-log/{service_name}-{ts}.md"
-        content = f"# Remediation: {service_name}\n\n**Action:** {action}\n\n{details}\n"
+        content = (
+            f"# Remediation: {service_name}\n\n**Action:** {action}\n\n{details}\n"
+        )
         repo.create_file(
             path=file_path,
             message=f"incident-response-mesh: {action} for {service_name}",

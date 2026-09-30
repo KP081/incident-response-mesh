@@ -10,7 +10,11 @@ from tools.report_tools import create_remediation_draft, render_postmortem
 
 from core.config import MODEL_NAME
 from core.callbacks import fix_advisor_tool_callback
-from core.observability import before_agent_logging_callback, after_agent_logging_callback, after_tool_logging_callback
+from core.observability import (
+    before_agent_logging_callback,
+    after_agent_logging_callback,
+    after_tool_logging_callback,
+)
 
 
 def build_fix_advisor_agent() -> LlmAgent:

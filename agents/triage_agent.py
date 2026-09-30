@@ -10,7 +10,11 @@ from core.config import MODEL_NAME
 
 from pydantic import BaseModel
 
-from core.observability import before_agent_logging_callback, after_agent_logging_callback
+from core.observability import (
+    before_agent_logging_callback,
+    after_agent_logging_callback,
+)
+
 
 class TriageResult(BaseModel):
     service_name: str
